@@ -1,0 +1,26 @@
+[gd_scene load_steps=4 format=2]
+
+[ext_resource path="res://100_yen.gd" type="Script" id=1]
+[ext_resource path="res://sprites/100_yen.png" type="Texture" id=2]
+
+[sub_resource type="CircleShape2D" id=1]
+radius = 62.7069
+
+[node name="Hyakuen" type="RigidBody2D"]
+position = Vector2( 62.2803, 55.383 )
+input_pickable = true
+gravity_scale = 10.0
+script = ExtResource( 1 )
+__meta__ = {
+"_edit_group_": true
+}
+
+[node name="HyakuenSprite" type="Sprite" parent="."]
+scale = Vector2( 0.4, 0.4 )
+texture = ExtResource( 2 )
+
+[node name="HyakuenCollisionbody" type="CollisionShape2D" parent="."]
+scale = Vector2( 0.5, 0.5 )
+shape = SubResource( 1 )
+
+[connection signal="input_event" from="." to="." method="_on_Hyakuen_input_event"]

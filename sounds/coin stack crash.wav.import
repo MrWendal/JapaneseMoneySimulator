@@ -1,0 +1,21 @@
+[remap]
+
+importer="wav"
+type="AudioStreamSample"
+path="res://.import/coin stack crash.wav-7cf4d7c42eec16233a47a68e8eb3da13.sample"
+
+[deps]
+
+source_file="res://sounds/coin stack crash.wav"
+dest_files=[ "res://.import/coin stack crash.wav-7cf4d7c42eec16233a47a68e8eb3da13.sample" ]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=true
+edit/normalize=true
+edit/loop=false
+compress/mode=0

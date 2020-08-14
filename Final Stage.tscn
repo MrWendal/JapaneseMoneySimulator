@@ -1,0 +1,1646 @@
+[gd_scene load_steps=52 format=2]
+
+[ext_resource path="res://Hyakuen.tscn" type="PackedScene" id=1]
+[ext_resource path="res://TrayHyakuen.tscn" type="PackedScene" id=2]
+[ext_resource path="res://Gohyakuen.tscn" type="PackedScene" id=3]
+[ext_resource path="res://TrayGohyakuen.tscn" type="PackedScene" id=4]
+[ext_resource path="res://Gojuen.tscn" type="PackedScene" id=5]
+[ext_resource path="res://TrayGojuen.tscn" type="PackedScene" id=6]
+[ext_resource path="res://Juen.tscn" type="PackedScene" id=7]
+[ext_resource path="res://TrayJuen.tscn" type="PackedScene" id=8]
+[ext_resource path="res://Goen.tscn" type="PackedScene" id=9]
+[ext_resource path="res://TrayGoen.tscn" type="PackedScene" id=10]
+[ext_resource path="res://Ichien.tscn" type="PackedScene" id=11]
+[ext_resource path="res://TrayIchien.tscn" type="PackedScene" id=12]
+[ext_resource path="res://TraySenen.tscn" type="PackedScene" id=13]
+[ext_resource path="res://clock.tscn" type="PackedScene" id=14]
+[ext_resource path="res://sprites/background03.png" type="Texture" id=15]
+[ext_resource path="res://SenStack.gd" type="Script" id=16]
+[ext_resource path="res://sprites/thousand_notes_cutout.png" type="Texture" id=17]
+[ext_resource path="res://sprites/thousand_notes_bright_cutout.png" type="Texture" id=18]
+[ext_resource path="res://sprites/jar.png" type="Texture" id=19]
+[ext_resource path="res://sprites/hands.png" type="Texture" id=20]
+[ext_resource path="res://sprites/speechbubble.png" type="Texture" id=21]
+[ext_resource path="res://Arimo-Bold.ttf" type="DynamicFontData" id=22]
+[ext_resource path="res://sprites/TempYenSymbol.png" type="Texture" id=23]
+[ext_resource path="res://sprites/FinalGameDescription.png" type="Texture" id=24]
+[ext_resource path="res://sprites/high score 0.png" type="Texture" id=25]
+[ext_resource path="res://sprites/high score 10.png" type="Texture" id=26]
+[ext_resource path="res://sprites/high score 20.png" type="Texture" id=27]
+[ext_resource path="res://sprites/high score 30.png" type="Texture" id=28]
+[ext_resource path="res://sprites/high score 40.png" type="Texture" id=29]
+[ext_resource path="res://sprites/high score 50.png" type="Texture" id=30]
+[ext_resource path="res://SoundToggle.tscn" type="PackedScene" id=31]
+[ext_resource path="res://sprites/light01.png" type="Texture" id=32]
+[ext_resource path="res://sprites/light02.png" type="Texture" id=33]
+[ext_resource path="res://sprites/light03.png" type="Texture" id=34]
+[ext_resource path="res://sprites/light04.png" type="Texture" id=35]
+[ext_resource path="res://sprites/light05.png" type="Texture" id=36]
+[ext_resource path="res://sprites/light06.png" type="Texture" id=37]
+[ext_resource path="res://sprites/light07.png" type="Texture" id=38]
+[ext_resource path="res://sprites/light08.png" type="Texture" id=39]
+[ext_resource path="res://sprites/light09.png" type="Texture" id=40]
+[ext_resource path="res://sprites/light10.png" type="Texture" id=41]
+[ext_resource path="res://sounds/coin stack crash.wav" type="AudioStream" id=42]
+[ext_resource path="res://sounds/500 flick long.wav" type="AudioStream" id=43]
+[ext_resource path="res://sounds/one yen ding.wav" type="AudioStream" id=44]
+[ext_resource path="res://sounds/pin pon.wav" type="AudioStream" id=45]
+[ext_resource path="res://sounds/bu buu.wav" type="AudioStream" id=46]
+
+[sub_resource type="GDScript" id=1]
+script/source = "extends Node
+
+
+# Packing scenes into variables so I can instance them later
+# Exporting lets me load the .tscn scene files using the GUI Inspector
+export (PackedScene) var Hyakuen
+export (PackedScene) var TrayHyakuen
+export (PackedScene) var Gohyakuen
+export (PackedScene) var TrayGohyakuen
+export (PackedScene) var Gojuen
+export (PackedScene) var TrayGojuen
+export (PackedScene) var Juen
+export (PackedScene) var TrayJuen
+export (PackedScene) var Goen
+export (PackedScene) var TrayGoen
+export (PackedScene) var Ichien
+export (PackedScene) var TrayIchien
+export (PackedScene) var TraySenen
+export (PackedScene) var Clock
+
+var sound_enabled = true
+var music_enabled = true
+
+func _on_SoundToggle_sound_on():
+	sound_enabled = true
+func _on_SoundToggle_sound_off():
+	sound_enabled = false
+
+var message_ok = true
+
+# number of purchases without mistake in tutorial mode
+var tutorial_completion = 0
+# used to update the lights
+var current_light
+# false at start, true if the player has completed the tutorial
+var score_mode = true
+#tracks number of purchases, or \"score\" for score mode
+var purchases = 0
+
+
+# cost of the non-existant item you need to pay for.
+var cost
+# cost saved in case you hit undo
+var previous_cost
+# So if I change the Register location I only have to update it here. Used further down.
+onready var register = get_node (\"HUD/Register\")
+# Value of coins in the payment tray
+var amount_paid = 0
+#So if I change the Display location I only have to update it here. Used further down.
+onready var amount_paid_display = get_node(\"HUD/AmountPaidDisplay\")
+# Cash change to be given back to the player when they overpay
+var change
+# variables for tracking the number of coins before payment, used for undo function.
+var gohyaku_undo = 0
+var hyaku_undo = 0
+var goju_undo = 0
+var ju_undo = 0
+var go_undo = 0
+var ichi_undo = 0
+var tray_gohyaku_undo = 0
+var tray_hyaku_undo = 0
+var tray_goju_undo = 0
+var tray_ju_undo = 0
+var tray_go_undo = 0
+var tray_ichi_undo = 0
+var cursed_gohyaku_undo = 0
+var cursed_hyaku_undo = 0
+var cursed_goju_undo = 0
+var cursed_ju_undo = 0
+var cursed_go_undo = 0
+var cursed_ichi_undo = 0
+
+# disables paying until you're paying enough
+var pay_disabled = true
+# disables undo until after you've done your first payment
+var undo_disabled = true
+
+
+
+func _ready():
+	# new_cost function is defined way down below. Random number between 1-999. Updates display.
+	randomize()
+	new_cost()
+	coin_spawner()
+	var clock_spawn = Clock.instance()
+	get_node(\"CoinContainers/ClockContainer\").add_child(clock_spawn)
+	clock_spawn.position = $Purse/ClockSpawnLocation.position
+
+
+
+
+
+
+func _process(delta):
+	$HUD/TutorialCompletion.set_text(str(tutorial_completion))
+	amount_paid_display.set_text(str(amount_paid))
+	# disables / enables the pay button if you're paying enough
+	var b = $HUD/PayButton
+	if amount_paid >= cost:
+	# first one is for the button, second one is for the space key. I should probably combine and simplify these but whatever
+		b.set_disabled(false)
+		pay_disabled = false
+	else:
+		b.set_disabled(true)
+		pay_disabled = true
+	$HUD/CostDisplay.set_text(str(cost))
+	$HUD/PreviousCostDisplay.set_text(str(previous_cost))
+	# pay on key press of the space bar
+	if Input.is_action_pressed(\"ui_pay\"):
+		if pay_disabled == true:
+        	pass
+		else:
+			payme()
+	$HUD/ScoreTracker.set_text(str(\"Score: \", purchases, \" purchases\"))
+	if purchases > 0 and $CoinContainers/ClockContainer.get_child_count() > 0:
+		var current_clock = $CoinContainers/ClockContainer.get_child(0)
+		var current_sprite = current_clock.get_child(0)
+		var current_collision_shape = current_clock.get_child(1)
+		if purchases < 10:
+			current_sprite.scale.y += .0002
+			current_sprite.scale.x += .0002
+			current_collision_shape.scale.y += .004
+			current_collision_shape.scale.x += .004
+		if purchases >= 10: #and purchases < 35:
+			current_sprite.scale.y += (0.0002*(purchases/10))
+			current_sprite.scale.x += (0.0002*(purchases/10))
+			current_collision_shape.scale.y += (0.004*(purchases/10))
+			current_collision_shape.scale.x += (0.004*(purchases/10))
+#		if purchases >= 35:
+#			current_sprite.scale.y += (0.0002*(35/10))
+#			current_sprite.scale.x += (0.0002*(35/10))
+#			current_collision_shape.scale.y += (0.004*(35/10))
+#			current_collision_shape.scale.x += (0.004*(35/10))
+			
+	if Input.is_action_pressed(\"ui_score_mode\"):
+		#purchases += 1
+		pass
+
+
+\"\"\"
+	
+#	$background_sprite.scale.y += .01
+#	current_clock.CollisionShape2D.scale.y += .01
+	
+	# undo on key press of \"z\"
+#	if Input.is_action_pressed(\"ui_undo\"):
+#		if undo_disabled == true:
+#			pass
+#		else:
+#			undo()
+		# hack to skip to score mode
+#	if Input.is_action_pressed(\"ui_score_mode\"):
+#		tutorial_completion = 10
+#		$HUD/ScoreModeStart.show()
+#	$HUD/ScoreModeTimer.set_text(str($ScoreModeTimer.time_left))
+
+\"\"\"
+
+# ----------------COIN SPAWNING FUNCTIONS--------------------------------------------------
+# These functions spawn specific coins into the purse when called.
+# Used for spawning coins at game start, giving change back to the player, etc.
+# Tray spawning functions are in the --COIN PAYING / UNPAYING-- section
+
+func coin_spawner():
+	gohyakuen_spawner()
+	hyakuen_spawner()
+	gojuen_spawner()
+	juen_spawner()
+	goen_spawner()
+	ichien_spawner()
+	
+
+func gohyakuen_spawner():
+	# This variable allows referencing the specific newly spawning Gohyakuen coin instead of another instance
+	var gohyaku_spawn = Gohyakuen.instance()
+	# Spawns an instance of Gohyakuen hereto referred as gohyaku_spawn. In the cointainer node.
+	get_node(\"CoinContainers/GohyakuenContainer\").add_child(gohyaku_spawn)
+	# Says where to spawn it
+	gohyaku_spawn.position = $Purse/PurseSpawnLocation.position
+	# Connects it to the \"paid\" signal in code. Can't do it with GUI because
+	# the coin does not exist in the main scene until it is created in code by this spawner.
+	# in brackets are (signal, ?, and the function the signal connects to)
+	gohyaku_spawn.connect(\"gohyakuen_paid\", self, \"_on_gohyakuen_paid\")
+	# Gets the number of coins in the 500 yen container
+	var gohyakuen_count = $CoinContainers/GohyakuenContainer.get_child_count()
+	# If it's more than 2,  do the following
+	if gohyakuen_count >= 2:
+		mistake = true
+		# Do it the number of 500 yen coins -1 times. Minus one because one 500 yen coin is OK.
+		for x in gohyakuen_count -1:
+			gohyakuen_curser()
+		tutorial_completion = 0
+		$HUD/MessageBox.show()
+		$MessageDelete.start()
+		if gohyakuen_count == 2:
+			$HUD/MessageBox.set_text(str(\"You have too many 500 yen coins! Coin(s) cursed.\")) # when working change to \"One has been cursed\"
+		else: # currently broken
+			$HUD/MessageBox.set_text(str(\"You have \", gohyakuen_count -1, \" too many 500 yen coins! They have been cursed.\"))
+
+
+#used when spawning coins AND when punishing overypay.
+func gohyakuen_curser():
+	#variable to grab the first (oldest) coin in the cointainer
+	var cursed_gohyaku = $CoinContainers/GohyakuenContainer.get_child(0)
+	# Makes non-interactive so you can't click on it anymore.
+	cursed_gohyaku.set_pickable(false)
+	# Changes the color to indicate curse.
+	cursed_gohyaku.get_child(0).modulate = Color(0.35, 0.35, 0.35)
+	# The following is a bunch of BS to get it reparented.
+	# Needs to be reparented so it doesn't keep counting against future 500 yen coin mistakes too.
+	# Sets a temp variable which grabs the position of the coin
+	var old_position = cursed_gohyaku.global_position
+	# grabs the parent and removes the child from it
+	cursed_gohyaku.get_parent().remove_child(cursed_gohyaku)
+	# Adds it to the cursed cointainer
+	$CoinContainers/CursedGohyakuenContainer.add_child(cursed_gohyaku)
+	# Keeps it in the same position as it was after it is reparented.
+	cursed_gohyaku.global_position = old_position
+	cursed_gohyaku.add_to_group(\"cursed_coins\")
+
+
+# The undo function was doing weird things with func gohyakuen_spawner():, this simplified one seems fine 
+func gohyakuen_spawner_for_undo():
+	var gohyaku_spawn = Gohyakuen.instance()
+	get_node(\"CoinContainers/GohyakuenContainer\").add_child(gohyaku_spawn)
+	gohyaku_spawn.position = $Purse/PurseSpawnLocation.position
+	gohyaku_spawn.connect(\"gohyakuen_paid\", self, \"_on_gohyakuen_paid\")
+
+# For spawning cursed coins when you hit undo.
+func cursed_gohyakuen_spawner():
+	print (\"Cursed 500en spawner just fired, here is the count\", cursed_gohyaku_undo)
+	var gohyaku_spawn = Gohyakuen.instance()
+	get_node(\"CoinContainers/CursedGohyakuenContainer\").add_child(gohyaku_spawn)
+	gohyaku_spawn.position = $Purse/PurseSpawnLocation.position
+	gohyaku_spawn.connect(\"gohyakuen_paid\", self, \"_on_gohyakuen_paid\")
+	# So you cant interact with the cursed coin
+	gohyaku_spawn.set_pickable(false)
+	# Changes color to dark grey
+	gohyaku_spawn.modulate = Color(0.35, 0.35, 0.35)
+	
+
+func hyakuen_spawner():
+	var hyaku_spawn = Hyakuen.instance()
+	get_node(\"CoinContainers/HyakuenContainer\").add_child(hyaku_spawn)
+	hyaku_spawn.position = $Purse/PurseSpawnLocation.position
+	hyaku_spawn.connect(\"hyakuen_paid\", self, \"_on_hyakuen_paid\")
+	var hyakuen_count = $CoinContainers/HyakuenContainer.get_child_count()
+	if hyakuen_count >= 5:
+		mistake = true
+		tutorial_completion = 0
+		for x in hyakuen_count -4:
+			hyakuen_curser()
+		$HUD/MessageBox.show()
+		$MessageDelete.start()
+		$HUD/MessageBox.set_text(str(\"You have too many 100 yen coins! Coin(s) cursed.\")) # when working change to reflect number
+
+
+func hyakuen_curser():
+		var cursed_hyaku = $CoinContainers/HyakuenContainer.get_child(0)
+		cursed_hyaku.set_pickable(false)
+		cursed_hyaku.get_child(0).modulate = Color(0.35, 0.35, 0.35)
+		var old_position = cursed_hyaku.global_position
+		cursed_hyaku.get_parent().remove_child(cursed_hyaku)
+		$CoinContainers/CursedHyakuenContainer.add_child(cursed_hyaku)
+		cursed_hyaku.global_position = old_position
+		cursed_hyaku.add_to_group(\"cursed_coins\")
+
+
+func hyakuen_spawner_for_undo():
+	var hyaku_spawn = Hyakuen.instance()
+	get_node(\"CoinContainers/HyakuenContainer\").add_child(hyaku_spawn)
+	hyaku_spawn.position = $Purse/PurseSpawnLocation.position
+	hyaku_spawn.connect(\"hyakuen_paid\", self, \"_on_hyakuen_paid\")
+
+func cursed_hyakuen_spawner():
+	var hyaku_spawn = Hyakuen.instance()
+	get_node(\"CoinContainers/CursedHyakuenContainer\").add_child(hyaku_spawn)
+	hyaku_spawn.position = $Purse/PurseSpawnLocation.position
+	hyaku_spawn.connect(\"hyakuen_paid\", self, \"_on_hyakuen_paid\")
+	hyaku_spawn.set_pickable(false)
+	hyaku_spawn.modulate = Color(0.35, 0.35, 0.35)
+
+func gojuen_spawner():
+	var gojuen_spawn = Gojuen.instance()
+	get_node(\"CoinContainers/GojuenContainer\").add_child(gojuen_spawn)
+	gojuen_spawn.position = $Purse/PurseSpawnLocation.position
+	gojuen_spawn.connect(\"gojuen_paid\", self, \"_on_gojuen_paid\")
+	var gojuen_count = $CoinContainers/GojuenContainer.get_child_count()
+	if gojuen_count >= 2:
+		mistake = true
+		tutorial_completion = 0
+		for x in gojuen_count -1:
+			gojuen_curser()
+		$HUD/MessageBox.show()
+		$MessageDelete.start()
+		$HUD/MessageBox.set_text(str(\"You have too many 50 yen coins! Coin cursed.\")) # when working change to reflect number
+
+func gojuen_curser():
+	var cursed_gojuen = $CoinContainers/GojuenContainer.get_child(0)
+	cursed_gojuen.set_pickable(false)
+	cursed_gojuen.get_child(0).modulate = Color(0.35, 0.35, 0.35)
+	var old_position = cursed_gojuen.global_position
+	cursed_gojuen.get_parent().remove_child(cursed_gojuen)
+	$CoinContainers/CursedGojuenContainer.add_child(cursed_gojuen)
+	cursed_gojuen.global_position = old_position
+	cursed_gojuen.add_to_group(\"cursed_coins\")
+
+
+func gojuen_spawner_for_undo():
+	var gojuen_spawn = Gojuen.instance()
+	get_node(\"CoinContainers/GojuenContainer\").add_child(gojuen_spawn)
+	gojuen_spawn.position = $Purse/PurseSpawnLocation.position
+	gojuen_spawn.connect(\"gojuen_paid\", self, \"_on_gojuen_paid\")
+
+func cursed_gojuen_spawner():
+	var goju_spawn = Gojuen.instance()
+	get_node(\"CoinContainers/CursedGojuenContainer\").add_child(goju_spawn)
+	goju_spawn.position = $Purse/PurseSpawnLocation.position
+	goju_spawn.connect(\"gojuen_paid\", self, \"_on_gojuen_paid\")
+	goju_spawn.set_pickable(false)
+	goju_spawn.modulate = Color(0.35, 0.35, 0.35)
+
+
+func juen_spawner():
+	var juen_spawn = Juen.instance()
+	get_node(\"CoinContainers/JuenContainer\").add_child(juen_spawn)
+	juen_spawn.position = $Purse/PurseSpawnLocation.position
+	juen_spawn.connect(\"juen_paid\", self, \"_on_juen_paid\")
+	var juen_count = $CoinContainers/JuenContainer.get_child_count()
+	if juen_count >= 5:
+		mistake = true
+		tutorial_completion = 0
+		for x in juen_count -4:
+			juen_curser()
+		$HUD/MessageBox.show()
+		$MessageDelete.start()
+		$HUD/MessageBox.set_text(str(\"You have too many 10 yen coins! Coin(s) cursed.\")) # when working change to reflect number
+
+func juen_curser():
+	var cursed_juen = $CoinContainers/JuenContainer.get_child(0)
+	cursed_juen.set_pickable(false)
+	cursed_juen.get_child(0).modulate = Color(0.35, 0.35, 0.35)
+	var old_position = cursed_juen.global_position
+	cursed_juen.get_parent().remove_child(cursed_juen)
+	$CoinContainers/CursedJuenContainer.add_child(cursed_juen)
+	cursed_juen.global_position = old_position
+	cursed_juen.add_to_group(\"cursed_coins\")
+
+func juen_spawner_for_undo():
+	var juen_spawn = Juen.instance()
+	get_node(\"CoinContainers/JuenContainer\").add_child(juen_spawn)
+	juen_spawn.position = $Purse/PurseSpawnLocation.position
+	juen_spawn.connect(\"juen_paid\", self, \"_on_juen_paid\")
+	
+func cursed_juen_spawner():
+	var ju_spawn = Juen.instance()
+	get_node(\"CoinContainers/CursedJuenContainer\").add_child(ju_spawn)
+	ju_spawn.position = $Purse/PurseSpawnLocation.position
+	ju_spawn.connect(\"juen_paid\", self, \"_on_juen_paid\")
+	ju_spawn.set_pickable(false)
+	ju_spawn.modulate = Color(0.35, 0.35, 0.35)
+
+
+func goen_spawner():
+	var goen_spawn = Goen.instance()
+	get_node(\"CoinContainers/GoenContainer\").add_child(goen_spawn)
+	goen_spawn.position = $Purse/PurseSpawnLocation.position
+	goen_spawn.connect(\"goen_paid\", self, \"_on_goen_paid\")
+	var goen_count = $CoinContainers/GoenContainer.get_child_count()
+	if goen_count >= 2:
+		mistake = true
+		tutorial_completion = 0
+		for x in goen_count -1:
+			goen_curser()
+		$HUD/MessageBox.show()
+		$MessageDelete.start()
+		$HUD/MessageBox.set_text(str(\"You have too many 5 yen coins! Coin cursed.\")) # when working change to reflect number
+
+func goen_curser():
+	print (\"Too many 5 yen coins. Coins cursed!\")
+	var cursed_goen = $CoinContainers/GoenContainer.get_child(0)
+	cursed_goen.set_pickable(false)
+	cursed_goen.get_child(0).modulate = Color(0.35, 0.35, 0.35)
+	var old_position = cursed_goen.global_position
+	cursed_goen.get_parent().remove_child(cursed_goen)
+	$CoinContainers/CursedGoenContainer.add_child(cursed_goen)
+	cursed_goen.global_position = old_position
+	cursed_goen.add_to_group(\"cursed_coins\")
+
+func goen_spawner_for_undo():
+	var goen_spawn = Goen.instance()
+	get_node(\"CoinContainers/GoenContainer\").add_child(goen_spawn)
+	goen_spawn.position = $Purse/PurseSpawnLocation.position
+	goen_spawn.connect(\"goen_paid\", self, \"_on_goen_paid\")
+	
+func cursed_goen_spawner():
+	var go_spawn = Goen.instance()
+	get_node(\"CoinContainers/CursedGoenContainer\").add_child(go_spawn)
+	go_spawn.position = $Purse/PurseSpawnLocation.position
+	go_spawn.connect(\"goen_paid\", self, \"_on_goen_paid\")
+	go_spawn.set_pickable(false)
+	go_spawn.modulate = Color(0.35, 0.35, 0.35)
+
+
+func ichien_spawner():
+	var ichien_spawn = Ichien.instance()
+	get_node(\"CoinContainers/IchienContainer\").add_child(ichien_spawn)
+	ichien_spawn.position = $Purse/PurseSpawnLocation.position
+	ichien_spawn.connect(\"ichien_paid\", self, \"_on_ichien_paid\")
+	var ichien_count = $CoinContainers/IchienContainer.get_child_count()
+	if ichien_count >= 5:
+		mistake = true
+		tutorial_completion = 0
+		for x in ichien_count -4:
+			ichien_curser()
+		$HUD/MessageBox.show()
+		$MessageDelete.start()
+		$HUD/MessageBox.set_text(str(\"You have too many 1 yen coins! Coin(s) cursed.\")) # when working change to reflect number
+
+func ichien_curser():
+	var cursed_ichien = $CoinContainers/IchienContainer.get_child(0)
+	cursed_ichien.set_pickable(false)
+	cursed_ichien.get_child(0).modulate = Color(0.35, 0.35, 0.35)
+	var old_position = cursed_ichien.global_position
+	cursed_ichien.get_parent().remove_child(cursed_ichien)
+	$CoinContainers/CursedIchienContainer.add_child(cursed_ichien)
+	cursed_ichien.global_position = old_position
+	cursed_ichien.add_to_group(\"cursed_coins\")
+
+func ichien_spawner_for_undo():
+	var ichien_spawn = Ichien.instance()
+	get_node(\"CoinContainers/IchienContainer\").add_child(ichien_spawn)
+	ichien_spawn.position = $Purse/PurseSpawnLocation.position
+	ichien_spawn.connect(\"ichien_paid\", self, \"_on_ichien_paid\")
+
+func cursed_ichien_spawner():
+	var ichi_spawn = Ichien.instance()
+	get_node(\"CoinContainers/CursedIchienContainer\").add_child(ichi_spawn)
+	ichi_spawn.position = $Purse/PurseSpawnLocation.position
+	ichi_spawn.connect(\"ichien_paid\", self, \"_on_ichien_paid\")
+	ichi_spawn.set_pickable(false)
+	ichi_spawn.modulate = Color(0.35, 0.35, 0.35)
+	
+# ----------------COIN SELECTING FUNCTIONS--------------------------------------------------
+# These functions activate when player clicks on a coin.
+
+# signal recived from SenStack when player clicks on it
+func _on_SenStack_input_event(viewport, event, shape_idx):
+	if event.is_pressed() and event.button_index == BUTTON_LEFT:
+		tray_senen_paid()
+	# the above pays too fast, pays 2000 on single click
+
+
+#_on_gohyakuen_paid is the recieving end of a signal
+func _on_gohyakuen_paid():
+	if sound_enabled == true:
+		$Sounds/GohyakuClicked.play()
+	tray_gohyakuen_spawner()
+	# This part of the code spawns a separate version of the coin called a \"Tray\" coin.
+	# Dodgy hack becasue I couldn't figure out how to mark coins in the payment tray and
+	# treat them differently from coins in the purse.
+	# Some lines of code are the same as the spawners, more detail there.
+
+#used immediately above & elsewhere
+func tray_gohyakuen_spawner():
+	print (\"500 yen paid.\")
+	var gohyaku_tray = TrayGohyakuen.instance()
+	get_node(\"CoinContainers/TrayGohyakuenContainer\").add_child(gohyaku_tray)
+	gohyaku_tray.position = $Tray/TraySpawnLocation.position
+	# Adds the new coin to the tray group, used when paying
+	gohyaku_tray.add_to_group(\"tray_coins\")
+	# Connects the new tray coin to the unpaid signal so the player can take the coin back if desired.
+	gohyaku_tray.connect(\"gohyakuen_unpaid\", self, \"_on_gohyakuen_unpaid\")
+	# Updates the value of coins in the payment tray as the game undertands it.
+	amount_paid += 500
+	# Updates the player's (debug?) display to reflect the new amount.
+	amount_paid_display.set_text(str(amount_paid))
+
+
+# Works same as above but for moving coins from the tray back to the purse.
+func _on_gohyakuen_unpaid():
+	if sound_enabled == true:
+		$Sounds/GohyakuClicked.play()
+	print (\"500 yen returned.\")
+	gohyakuen_spawner()
+	amount_paid -= 500
+	amount_paid_display.set_text(str(amount_paid))
+
+
+func _on_hyakuen_paid():
+	if sound_enabled == true:
+		$Sounds/GohyakuClicked.play()
+	tray_hyakuen_spawner()
+
+func tray_hyakuen_spawner():
+	print (\"100 yen paid.\")
+	var hyaku_tray = TrayHyakuen.instance()
+	get_node(\"CoinContainers/TrayHyakuenContainer\").add_child(hyaku_tray)
+	hyaku_tray.add_to_group(\"tray_coins\")
+	hyaku_tray.position = $Tray/TraySpawnLocation.position
+	hyaku_tray.connect(\"hyakuen_unpaid\", self, \"_on_hyakuen_unpaid\")
+	amount_paid += 100
+	amount_paid_display.set_text(str(amount_paid))
+
+func _on_hyakuen_unpaid():
+	if sound_enabled == true:
+		$Sounds/GohyakuClicked.play()
+	print (\"100 yen returned.\")
+	hyakuen_spawner()
+	amount_paid -= 100
+	amount_paid_display.set_text(str(amount_paid))
+
+func _on_gojuen_paid():
+	if sound_enabled == true:
+		$Sounds/GohyakuClicked.play()
+	tray_gojuen_spawner()
+	
+func tray_gojuen_spawner():
+	print (\"50 yen paid.\")
+	var gojuen_tray = TrayGojuen.instance()
+	get_node(\"CoinContainers/TrayGojuenContainer\").add_child(gojuen_tray)
+	gojuen_tray.add_to_group(\"tray_coins\")
+	gojuen_tray.position = $Tray/TraySpawnLocation.position
+	gojuen_tray.connect(\"gojuen_unpaid\", self, \"_on_gojuen_unpaid\")
+	amount_paid += 50
+	amount_paid_display.set_text(str(amount_paid))
+
+func _on_gojuen_unpaid():
+	if sound_enabled == true:
+		$Sounds/GohyakuClicked.play()
+	print (\"50 yen returned.\")
+	gojuen_spawner()
+	amount_paid -= 50
+	amount_paid_display.set_text(str(amount_paid))
+	
+func _on_juen_paid():
+	if sound_enabled == true:
+		$Sounds/GohyakuClicked.play()
+	tray_juen_spawner()
+
+func tray_juen_spawner():
+	print (\"10 yen paid.\")
+	var juen_tray = TrayJuen.instance()
+	get_node(\"CoinContainers/TrayJuenContainer\").add_child(juen_tray)
+	juen_tray.add_to_group(\"tray_coins\")
+	juen_tray.position = $Tray/TraySpawnLocation.position
+	juen_tray.connect(\"juen_unpaid\", self, \"_on_juen_unpaid\")
+	amount_paid += 10
+	amount_paid_display.set_text(str(amount_paid))
+
+func _on_juen_unpaid():
+	if sound_enabled == true:
+		$Sounds/GohyakuClicked.play()
+	print (\"10 yen returned.\")
+	juen_spawner()
+	amount_paid -= 10
+	amount_paid_display.set_text(str(amount_paid))
+
+func _on_goen_paid():
+	if sound_enabled == true:
+		$Sounds/GohyakuClicked.play()
+	tray_goen_spawner()
+
+func tray_goen_spawner():
+	print (\"5 yen paid.\")
+	var goen_tray = TrayGoen.instance()
+	get_node(\"CoinContainers/TrayGoenContainer\").add_child(goen_tray)
+	goen_tray.add_to_group(\"tray_coins\")
+	goen_tray.position = $Tray/TraySpawnLocation.position
+	goen_tray.connect(\"goen_unpaid\", self, \"_on_goen_unpaid\")
+	amount_paid += 5
+	amount_paid_display.set_text(str(amount_paid))
+
+func _on_goen_unpaid():
+	if sound_enabled == true:
+		$Sounds/GohyakuClicked.play()
+	print (\"5 yen returned.\")
+	goen_spawner()
+	amount_paid -= 5
+	amount_paid_display.set_text(str(amount_paid))
+
+func _on_ichien_paid():
+	if sound_enabled == true:
+		$Sounds/IchiClicked.play()
+	tray_ichien_spawner()
+
+func tray_ichien_spawner():
+	print (\"1 yen paid.\")
+	var ichien_tray = TrayIchien.instance()
+	get_node(\"CoinContainers/TrayIchienContainer\").add_child(ichien_tray)
+	ichien_tray.add_to_group(\"tray_coins\")
+	ichien_tray.position = $Tray/TraySpawnLocation.position
+	ichien_tray.connect(\"ichien_unpaid\", self, \"_on_ichien_unpaid\")
+	amount_paid += 1
+	amount_paid_display.set_text(str(amount_paid))
+
+func _on_ichien_unpaid():
+	if sound_enabled == true:
+		$Sounds/IchiClicked.play()
+	print (\"1 yen returned.\")
+	ichien_spawner()
+	amount_paid -= 1
+	amount_paid_display.set_text(str(amount_paid))
+
+func tray_senen_paid():
+	print (\"1000 yen paid.\")
+	var senen_tray = TraySenen.instance()
+	get_node(\"CoinContainers/TraySenenContainer\").add_child(senen_tray)
+	senen_tray.add_to_group(\"tray_coins\")
+	senen_tray.position = $Tray/TraySpawnLocation.position
+	senen_tray.connect(\"senen_unpaid\", self, \"_on_senen_unpaid\")
+	amount_paid += 1000
+	amount_paid_display.set_text(str(amount_paid))
+
+func _on_senen_unpaid():
+	print (\"1000 yen returned.\")
+	amount_paid -= 1000
+	amount_paid_display.set_text(str(amount_paid))
+
+# ---------------- PAYING--------------------------------------------------
+
+# change count vars used in calculation to detemine if overpaying
+var ichien_change_count = 0
+var goen_change_count = 0
+var juen_change_count = 0
+var gojuen_change_count = 0
+var hyakuen_change_count = 0
+var gohyakuen_change_count = 0
+
+var mistake = false
+
+
+func _on_PayButton_pressed():
+	payme()
+
+
+func payme():
+	# deletes current clock
+	var current_clock = $CoinContainers/ClockContainer.get_child(0)
+	current_clock.queue_free()
+	#spawns new clock
+	var clock_spawn = Clock.instance()
+	get_node(\"CoinContainers/ClockContainer\").add_child(clock_spawn)
+	clock_spawn.position = $Purse/ClockSpawnLocation.position
+	$HUD/GameDescription.hide()
+	$HUD/MessageBox.hide()
+	$HUD/OverpaidSpeech.hide()
+	$HUD/SpeechBubble.hide()
+	tutorial_completion += 1
+	if sound_enabled == true:
+		$Sounds/Paid.play()
+	$HUD/UndoButton.set_disabled(false)
+	undo_disabled = false
+	previous_cost = cost
+	# Gets the number of 500 yen coins and updates the undo variable.
+	gohyaku_undo = get_node(\"CoinContainers/GohyakuenContainer\").get_child_count()
+	hyaku_undo = get_node(\"CoinContainers/HyakuenContainer\").get_child_count()
+	goju_undo = get_node(\"CoinContainers/GojuenContainer\").get_child_count()
+	ju_undo = get_node(\"CoinContainers/JuenContainer\").get_child_count()
+	go_undo = get_node(\"CoinContainers/GoenContainer\").get_child_count()
+	ichi_undo = get_node(\"CoinContainers/IchienContainer\").get_child_count()
+	tray_gohyaku_undo = get_node(\"CoinContainers/TrayGohyakuenContainer\").get_child_count()
+	tray_hyaku_undo = get_node(\"CoinContainers/TrayHyakuenContainer\").get_child_count()
+	tray_goju_undo = get_node(\"CoinContainers/TrayGojuenContainer\").get_child_count()
+	tray_ju_undo = get_node(\"CoinContainers/TrayJuenContainer\").get_child_count()
+	tray_go_undo = get_node(\"CoinContainers/TrayGoenContainer\").get_child_count()
+	tray_ichi_undo = get_node(\"CoinContainers/TrayIchienContainer\").get_child_count()
+	cursed_gohyaku_undo = get_node(\"CoinContainers/CursedGohyakuenContainer\").get_child_count()
+	cursed_hyaku_undo = get_node(\"CoinContainers/CursedHyakuenContainer\").get_child_count()
+	cursed_goju_undo = get_node(\"CoinContainers/CursedGojuenContainer\").get_child_count()
+	cursed_ju_undo = get_node(\"CoinContainers/CursedJuenContainer\").get_child_count()
+	cursed_go_undo = get_node(\"CoinContainers/CursedGoenContainer\").get_child_count()
+	cursed_ichi_undo = get_node(\"CoinContainers/CursedIchienContainer\").get_child_count()
+	change = amount_paid - cost
+	amount_paid = 0
+	amount_paid_display.set_text(str(amount_paid))
+	print (\"Change is \", change)
+	# resets change counts so old payments dont affect the tray curse when overpaying
+	ichien_change_count = 0
+	goen_change_count = 0
+	juen_change_count = 0
+	gojuen_change_count = 0
+	hyakuen_change_count = 0
+	gohyakuen_change_count = 0
+	if change == 0:
+		var cursed = get_tree().get_nodes_in_group(\"cursed_coins\")
+		# for *every* coin in payment
+		for coin in cursed:
+			coin.queue_free()
+		$HUD/MessageBox.show()
+		$HUD/MessageBox.set_text(str(\"Cursed coins cleared!\"))
+		$HUD/SpeechBubble.show()
+		$HUD/OverpaidSpeech.show()
+		$HUD/OverpaidSpeech.set_text(str(\"Wooohooo! \\nCursed coins cleared!\"))
+		$MessageDelete.start()
+	for num in change:
+		if change >= 500:
+			gohyakuen_spawner()
+			change = change - 500
+			gohyakuen_change_count += 1 #used below in overpay protection
+			if change < 500:
+				if tray_gohyaku_undo > 0: # if you're paying with 500 yen coin(s)
+					if gohyakuen_change_count > 0: # and you're getting 500 yen coins as change
+						$HUD/MessageBox.show()
+						$MessageDelete.start()
+						$HUD/MessageBox.set_text(str(\"You take the (now cursed) 500 yen coin back.\"))
+						$HUD/OverpaidSpeech.show()
+						$HUD/SpeechBubble.show()
+						$HUD/OverpaidSpeech.set_text(str(\"You didn't need to pay with this 500 yen coin.\\n(Coin cursed)\"))
+						if tray_gohyaku_undo - gohyakuen_change_count > 0:
+							mistake = true
+						# if you've used more coins than you'll get back
+						# not technically possible for 500, but possible with other coin types
+							for x in gohyakuen_change_count:
+								print (\"You've overpaid, with some valid coins! 500\") 
+								gohyakuen_curser()
+						else: # if you've used less than or equal to the no. of coins you'll get back
+							for x in tray_gohyaku_undo:
+								print (\"You've overpaid, unnesessary 500\")
+								gohyakuen_curser()
+		elif change >= 100:
+			hyakuen_spawner()
+			change = change - 100
+			hyakuen_change_count += 1
+			if change < 100:
+				if tray_hyaku_undo > 0:
+					if hyakuen_change_count > 0:
+						mistake = true
+						$HUD/MessageBox.show()
+						$MessageDelete.start()
+						$HUD/MessageBox.set_text(str(\"You take the (now cursed) 100 yen coin(s) back.\"))
+						$HUD/OverpaidSpeech.show()
+						$HUD/SpeechBubble.show()
+						$HUD/OverpaidSpeech.set_text(str(\"You didn't need to pay with this 100 yen coin(s). \\n(Coin cursed)\"))
+						if tray_hyaku_undo - hyakuen_change_count > 0:
+							for x in hyakuen_change_count:
+								print (\"You've overpaid, with some valid coins! 100\")
+								hyakuen_curser()
+						else:
+							for x in tray_hyaku_undo:
+								print (\"You've overpaid, unnesessary 100\")
+								hyakuen_curser()
+		elif change >= 50:
+			gojuen_spawner()
+			change = change - 50
+			gojuen_change_count += 1
+			if change < 50:
+				if tray_goju_undo > 0:
+					if gojuen_change_count > 0:
+						mistake = true
+						$HUD/MessageBox.show()
+						$MessageDelete.start()
+						$HUD/MessageBox.set_text(str(\"You take the (now cursed) 50 yen coin back.\"))
+						$HUD/OverpaidSpeech.show()
+						$HUD/SpeechBubble.show()
+						$HUD/OverpaidSpeech.set_text(str(\"You didn't need to pay with this 50 yen coin.\\n(Coin cursed)\"))
+						if tray_goju_undo - gojuen_change_count > 0:
+							for x in gojuen_change_count:
+								print (\"You've overpaid with some valid coins. 50\")
+								gojuen_curser()
+						else:
+							for x in tray_goju_undo:
+								print(\"You've overpaid, unnesessary 50.\")
+								gojuen_curser()
+		elif change >= 10:
+			juen_spawner()
+			change = change - 10
+			juen_change_count += 1
+			if change < 10:
+				if tray_ju_undo > 0:
+					if juen_change_count > 0:
+						mistake = true
+						$HUD/MessageBox.show()
+						$MessageDelete.start()
+						$HUD/MessageBox.set_text(str(\"You take the (now cursed) 10 yen coin(s) back.\"))
+						$HUD/OverpaidSpeech.show()
+						$HUD/SpeechBubble.show()
+						$HUD/OverpaidSpeech.set_text(str(\"You didn't need to pay with this 10 yen coin(s).\\n(Coin cursed)\"))
+						if tray_ju_undo - juen_change_count > 0:
+							for x in juen_change_count:
+								print (\"You've overpaid, with some valid coins 10.\")
+								juen_curser()
+						else:
+							for x in tray_ju_undo:
+								print (\"You've overpaid, unnesessary 10.\")
+								juen_curser()
+		elif change >= 5:
+			goen_spawner()
+			change = change - 5
+			goen_change_count += 1
+			if change < 5:
+				if tray_go_undo > 0:
+					if goen_change_count > 0:
+						mistake = true
+						$HUD/MessageBox.show()
+						$MessageDelete.start()
+						$HUD/MessageBox.set_text(str(\"You take the (now cursed) 5 yen coin back.\"))
+						$HUD/OverpaidSpeech.show()
+						$HUD/SpeechBubble.show()
+						$HUD/OverpaidSpeech.set_text(str(\"You didn't need to pay with this 5 yen coin.\\n(Coin cursed)\"))
+						if tray_go_undo - goen_change_count > 0:
+							for x in goen_change_count:
+								print (\"You've overpaid, with some valid coins 5\")
+								goen_curser()
+						else:
+							for x in tray_go_undo:
+								print (\"You've overpaid, unnesessary 5.\")
+								goen_curser()
+		elif change >= 1:
+			ichien_spawner()
+			ichien_change_count += 1 # used below in overpay detection
+			change = change - 1
+			# Overpay detection. Change 0 means it only triggers once instead of every loop.
+			if change == 0 :
+				# checks if you've paid with any one yen coins
+				if tray_ichi_undo > 0:
+					# and if you're getting any back as change
+					if ichien_change_count > 0:
+						mistake = true
+						$HUD/MessageBox.show()
+						$MessageDelete.start()
+						$HUD/MessageBox.set_text(str(\"You take the (now cursed) 1 yen coin(s) back.\"))
+						$HUD/OverpaidSpeech.show()
+						$HUD/SpeechBubble.show()
+						$HUD/OverpaidSpeech.set_text(str(\"You didn't need to pay with this 1 yen coin(s).\\n(Coin cursed)\"))
+						# if you've used more coins than you needed
+						if tray_ichi_undo - ichien_change_count > 0:
+							for x in ichien_change_count:
+								print (\"You've overpaid, with some valid coins 1\")
+								ichien_curser()
+						else:
+							for x in tray_ichi_undo:
+								print (\"You've overpaid, unnesessary 1.\")
+								ichien_curser()
+		else:
+			pass
+	# gets all the nodes in group tray_coins. Not sure how get_tree is relevant.
+	var payment = get_tree().get_nodes_in_group(\"tray_coins\")
+	# for *every* coin in payment
+	for coin in payment:
+		coin.queue_free()
+	new_cost()
+	if tutorial_completion <= 0:
+		$Lights/Light.hide()
+		$Lights/Light2.hide()
+		$Lights/Light3.hide()
+		$Lights/Light4.hide()
+		$Lights/Light5.hide()
+		$Lights/Light6.hide()
+		$Lights/Light7.hide()
+		$Lights/Light8.hide()
+		$Lights/Light9.hide()
+		$Lights/Light10.hide()
+	elif tutorial_completion == 1:
+		current_light = $Lights/Light
+		current_light.show()
+		$Lights/LightTimerOff.start()
+	elif tutorial_completion == 2:
+		current_light = $Lights/Light2
+		current_light.show()
+		$Lights/LightTimerOff.start()
+	elif tutorial_completion == 3:
+		current_light = $Lights/Light3
+		current_light.show()
+		$Lights/LightTimerOff.start()
+	elif tutorial_completion == 4:
+		current_light = $Lights/Light4
+		current_light.show()
+		$Lights/LightTimerOff.start()
+	elif tutorial_completion == 5:
+		current_light = $Lights/Light5
+		current_light.show()
+		$Lights/LightTimerOff.start()
+	elif tutorial_completion == 6:
+		current_light = $Lights/Light6
+		current_light.show()
+		$Lights/LightTimerOff.start()
+	elif tutorial_completion == 7:
+		current_light = $Lights/Light7
+		current_light.show()
+		$Lights/LightTimerOff.start()
+	elif tutorial_completion == 8:
+		current_light = $Lights/Light8
+		current_light.show()
+		$Lights/LightTimerOff.start()
+	elif tutorial_completion == 9:
+		current_light = $Lights/Light9
+		current_light.show()
+		$Lights/LightTimerOff.start()
+	elif tutorial_completion == 10:
+		current_light = $Lights/Light10
+		current_light.show()
+		$Lights/LightTimerOff.start()
+#		$HUD/ScoreModeStart.show()
+	elif tutorial_completion > 10:
+		pass
+	if score_mode == true:
+		purchases += 1
+	if mistake == false:
+		if sound_enabled == true:
+			$Sounds/PinPon.play()
+	else:
+		mistake = false
+		if sound_enabled == true:
+			$Sounds/BuBuu.play()
+		
+
+func _on_LightTimerOff_timeout():
+	current_light.hide()
+	$Lights/LightTimerOn.start()
+	
+func _on_LightTimerOn_timeout():
+	current_light.show()
+
+
+# ---------------- RANDOM COST GENERATION----------------------------------------------#
+func new_cost():
+	#returns a random integer between 50-999           randi() % (max - min) + min
+	cost = randi() % (999-50) + 50
+	register.set_text(str(cost))
+
+
+# ---------------- UNDO FUNCTION----------------------------------------------#
+# When you hit pay, all coins in play get added to variables
+# When you hit undo, the following deletes all coins in play
+# and uses the saved variables to bring the old coins back.
+
+func _on_UndoButton_pressed():
+	undo()
+	
+func undo():
+	# disables undo variable so you cant do twice in a row when pressing \"z\" key
+	undo_disabled = true
+	# Disables undo button so you can't undo twice in a row
+	$HUD/UndoButton.set_disabled(true)
+	# Sets the cost back to the previous cost
+	cost = previous_cost
+	#Updates the register display with the recalled previous cost
+	register.set_text(str(cost))
+	var tray_coins_for_deletion = get_tree().get_nodes_in_group(\"tray_coins\")
+	for coin in tray_coins_for_deletion:
+		coin.queue_free()
+	var purse_coins_for_deletion = get_tree().get_nodes_in_group(\"purse_coins\")
+	for coin in purse_coins_for_deletion:
+		coin.queue_free()
+	# Respawns the previous number of regular coins by calling from the undo variables
+	for x in gohyaku_undo:
+		print (\"500 coin returned to purse because of undo\")
+		gohyakuen_spawner_for_undo()
+	for x in hyaku_undo:
+		print (\"100 coin returned to purse because of undo\")
+		hyakuen_spawner_for_undo()
+	for x in goju_undo:
+		gojuen_spawner_for_undo()
+	for x in ju_undo:
+		juen_spawner_for_undo()
+	for x in go_undo:
+		goen_spawner_for_undo()
+	for x in ichi_undo:
+		ichien_spawner_for_undo()
+	# Respawns the previous number of tray coins by calling from the undo variables
+	for x in tray_gohyaku_undo:
+		print (\"500 coin returned to purse because of undo\")
+		tray_gohyakuen_spawner()
+	for x in tray_hyaku_undo:
+		print (\"100 coin returned to purse because of undo\")
+		tray_hyakuen_spawner()
+	for x in tray_goju_undo:
+		tray_gojuen_spawner()
+	for x in tray_ju_undo:
+		tray_juen_spawner()
+	for x in tray_go_undo:
+		tray_goen_spawner()
+	for x in tray_ichi_undo:
+		tray_ichien_spawner()
+	# Respawns the previous number of cursed coins by calling from the undo variables
+	for x in cursed_gohyaku_undo:
+		print (\"Cursed 500 coin returned to purse because of undo\")
+		cursed_gohyakuen_spawner()
+	for x in cursed_hyaku_undo:
+		print (\"100 coin returned to purse because of undo\")
+		cursed_hyakuen_spawner()
+	for x in cursed_goju_undo:
+		cursed_gojuen_spawner()
+	for x in cursed_ju_undo:
+		cursed_juen_spawner()
+	for x in cursed_go_undo:
+		cursed_goen_spawner()
+	for x in cursed_ichi_undo:
+		cursed_ichien_spawner()
+	# resets progress to zero
+	tutorial_completion = 0
+	$Lights/Light.hide()
+	$Lights/Light2.hide()
+	$Lights/Light3.hide()
+	$Lights/Light4.hide()
+	$Lights/Light5.hide()
+	$Lights/Light6.hide()
+	$Lights/Light7.hide()
+	$Lights/Light8.hide()
+	$Lights/Light9.hide()
+	$Lights/Light10.hide()
+
+
+
+#---------------------SCORE MODE----------------------------
+
+
+func _on_ScoreModeStart_pressed():
+	score_mode_go()
+
+
+func score_mode_go():
+	amount_paid = 0
+	score_mode = true
+	undo_disabled = true
+	$HUD/UndoButton.hide()
+	$HUD/ScoreModeStart.hide()
+#	$HUD/ScoreModeTimer.show()
+#	$ScoreModeTimer.start()
+	$HUD/ScoreTracker.show()
+	new_cost()
+	var tray_coins_for_deletion = get_tree().get_nodes_in_group(\"tray_coins\")
+	for coin in tray_coins_for_deletion:
+		coin.queue_free()
+	var purse_coins_for_deletion = get_tree().get_nodes_in_group(\"purse_coins\")
+	for coin in purse_coins_for_deletion:
+		coin.queue_free()
+	var tray_cursed_coins_for_deletion = get_tree().get_nodes_in_group(\"tray_cursed_coins\")
+	for coin in tray_cursed_coins_for_deletion:
+		coin.queue_free()
+	coin_spawner()
+	var clock_spawn = Clock.instance()
+	get_node(\"CoinContainers/ClockContainer\").add_child(clock_spawn)
+	clock_spawn.position = $Purse/ClockSpawnLocation.position
+	purchases = 0
+	$HUD/GameFinishedInfo.hide()
+	$HUD/HighScores/Zero.hide()
+	$HUD/HighScores/Ten.hide()
+	$HUD/HighScores/Twenty.hide()
+	$HUD/HighScores/Thirty.hide()
+	$HUD/HighScores/Fourty.hide()
+	$HUD/HighScores/Fifty.hide()
+	$SenStack.set_pickable(true)
+
+
+func reset_score_mode():
+	var tray_coins_for_deletion = get_tree().get_nodes_in_group(\"tray_coins\")
+	for coin in tray_coins_for_deletion:
+		coin.queue_free()
+	var purse_coins_for_deletion = get_tree().get_nodes_in_group(\"purse_coins\")
+	for coin in purse_coins_for_deletion:
+		coin.queue_free()
+	$HUD/ScoreModeStart.show()
+	
+func _on_Floor_body_entered(body):
+	if score_mode == true:
+		$ScoreModeTimer.stop()
+		$HUD/GameFinishedInfo.show()
+		$HUD/GameFinishedInfo.set_text(str(\"A coin hit the floor! GAME OVER.\\n Score: \", purchases, \" purchases\"))
+		if purchases < 10:
+			$HUD/HighScores/Zero.show()
+		elif purchases < 20:
+			$HUD/HighScores/Ten.show()
+		elif purchases < 30:
+			$HUD/HighScores/Twenty.show()
+		elif purchases < 40:
+			$HUD/HighScores/Thirty.show()
+		elif purchases < 50:
+			$HUD/HighScores/Fourty.show()
+		elif purchases >= 50:
+			$HUD/HighScores/Fifty.show()
+		$CoinContainers/ClockContainer.get_child(0).queue_free()
+		reset_score_mode()
+		$SenStack.set_pickable(false)
+	else:
+		var tray_coins_for_deletion = get_tree().get_nodes_in_group(\"tray_coins\")
+		for coin in tray_coins_for_deletion:
+			coin.queue_free()
+		var purse_coins_for_deletion = get_tree().get_nodes_in_group(\"purse_coins\")
+		for coin in purse_coins_for_deletion:
+			coin.queue_free()
+		$Lights/Light.hide()
+		$Lights/Light2.hide()
+		$Lights/Light3.hide()
+		$Lights/Light4.hide()
+		$Lights/Light5.hide()
+		$Lights/Light6.hide()
+		$Lights/Light7.hide()
+		$Lights/Light8.hide()
+		$Lights/Light9.hide()
+		$Lights/Light10.hide()
+		tutorial_completion = 0
+		$HUD/TutorialFinishedInfo.show()
+		coin_spawner()
+		new_cost()
+		$TutorialMsgDelete.start()
+
+
+func _on_TutorialMsgDelete_timeout():
+	$HUD/TutorialFinishedInfo.hide()
+
+
+func _on_MessageDelete_timeout():
+	$HUD/MessageBox.hide()
+	$HUD/OverpaidSpeech.hide()
+	$HUD/SpeechBubble.hide()
+
+
+
+"
+
+[sub_resource type="RectangleShape2D" id=2]
+extents = Vector2( 45.4064, 183.983 )
+
+[sub_resource type="SpriteFrames" id=3]
+animations = [ {
+"frames": [ ExtResource( 17 ) ],
+"loop": true,
+"name": "default",
+"speed": 5.0
+}, {
+"frames": [ ExtResource( 18 ) ],
+"loop": true,
+"name": "mouse_over",
+"speed": 5.0
+} ]
+
+[sub_resource type="DynamicFont" id=4]
+size = 43
+extra_spacing_char = 1
+font_data = ExtResource( 22 )
+
+[sub_resource type="RectangleShape2D" id=5]
+extents = Vector2( 2409.13, 48.3513 )
+
+[node name="StageThree" type="Node"]
+script = SubResource( 1 )
+Hyakuen = ExtResource( 1 )
+TrayHyakuen = ExtResource( 2 )
+Gohyakuen = ExtResource( 3 )
+TrayGohyakuen = ExtResource( 4 )
+Gojuen = ExtResource( 5 )
+TrayGojuen = ExtResource( 6 )
+Juen = ExtResource( 7 )
+TrayJuen = ExtResource( 8 )
+Goen = ExtResource( 9 )
+TrayGoen = ExtResource( 10 )
+Ichien = ExtResource( 11 )
+TrayIchien = ExtResource( 12 )
+TraySenen = ExtResource( 13 )
+Clock = ExtResource( 14 )
+
+[node name="background_sprite" type="Sprite" parent="."]
+position = Vector2( 640, 360 )
+texture = ExtResource( 15 )
+
+[node name="SenStack" type="Area2D" parent="."]
+script = ExtResource( 16 )
+
+[node name="SenStackCollisionBox" type="CollisionShape2D" parent="SenStack"]
+position = Vector2( 490.756, 526.851 )
+rotation = 0.20944
+shape = SubResource( 2 )
+
+[node name="SenStackSprite" type="AnimatedSprite" parent="SenStack"]
+frames = SubResource( 3 )
+centered = false
+
+[node name="Purse" type="StaticBody2D" parent="."]
+collision_layer = 32
+collision_mask = 32
+
+[node name="PurseBox" type="CollisionPolygon2D" parent="Purse"]
+position = Vector2( -409.379, 76.3311 )
+scale = Vector2( 0.807425, 0.813155 )
+z_as_relative = false
+polygon = PoolVector2Array( 694.984, 76.5926, 694.952, 134.719, 640.056, 194.543, 639.212, 670.909, 694.952, 685.001, 807.47, 697.308, 956.908, 681.485, 981.521, 651.598, 985.037, 194.494, 934.052, 129.444, 934.052, 71.4274, 952.74, 135.379, 1000.86, 210.317, 1002.62, 663.904, 983.279, 699.066, 802.195, 711.373, 628.661, 684.052, 625.121, 188.982, 684.433, 133.872 )
+
+[node name="PurseSpawnLocation" type="Position2D" parent="Purse"]
+visible = false
+position = Vector2( 228.925, 142.554 )
+
+[node name="ClockSpawnLocation" type="Position2D" parent="Purse"]
+position = Vector2( 247.013, 496.779 )
+
+[node name="Jar" type="Sprite" parent="Purse"]
+visible = false
+texture = ExtResource( 19 )
+centered = false
+
+[node name="PurseBoxSmall2" type="StaticBody2D" parent="."]
+collision_layer = 33
+collision_mask = 33
+
+[node name="PurseBoxSmall" type="CollisionPolygon2D" parent="PurseBoxSmall2"]
+position = Vector2( -569.077, -38.5442 )
+z_as_relative = false
+polygon = PoolVector2Array( 646.639, 541.733, 690.723, 587.497, 749.43, 614.47, 814.484, 612.884, 919.204, 568.457, 981.085, 530.376, 1035.03, 498.643, 1060.42, 411.376, 1062.01, 474.843, 1004.89, 562.11, 951.119, 641.18, 758.363, 682.924, 662.162, 617.644, 582.828, 528.79, 605.024, 381.434 )
+
+[node name="Hands" type="Sprite" parent="PurseBoxSmall2"]
+texture = ExtResource( 20 )
+centered = false
+
+[node name="TraySen" type="StaticBody2D" parent="."]
+position = Vector2( 813.214, 395.083 )
+collision_layer = 32
+collision_mask = 32
+
+[node name="TrayBoxSen" type="CollisionPolygon2D" parent="TraySen"]
+position = Vector2( -439.705, -66.7836 )
+scale = Vector2( 0.5, 0.5 )
+polygon = PoolVector2Array( 622.443, 695.753, 703.839, 653.547, 786.984, 746.738, 1405, 451.299, 1448.47, 430.461, 1496.7, 409.358, 1483.05, 448.203, 723.676, 807.032 )
+
+[node name="Tray" type="StaticBody2D" parent="."]
+position = Vector2( 813.214, 395.083 )
+
+[node name="TraySpawnLocation" type="Position2D" parent="Tray"]
+position = Vector2( 842.526, 298.296 )
+
+[node name="TrayBox" type="CollisionPolygon2D" parent="Tray"]
+position = Vector2( -442.72, -59.247 )
+scale = Vector2( 0.5, 0.5 )
+polygon = PoolVector2Array( 470.391, 381.396, 604.006, 434.138, 786.984, 746.738, 1405, 451.299, 1178.89, 146.815, 1163.08, 103.617, 1483.05, 448.203, 723.676, 807.032 )
+
+[node name="ScoreModeTimer" type="Timer" parent="."]
+wait_time = 60.0
+one_shot = true
+
+[node name="TutorialMsgDelete" type="Timer" parent="."]
+wait_time = 10.0
+one_shot = true
+
+[node name="CurseTimer" type="Timer" parent="."]
+one_shot = true
+
+[node name="MessageDelete" type="Timer" parent="."]
+wait_time = 10.0
+one_shot = true
+
+[node name="HUD" type="Control" parent="."]
+margin_right = 40.0
+margin_bottom = 40.0
+
+[node name="SpeechBubble" type="Sprite" parent="HUD"]
+visible = false
+texture = ExtResource( 21 )
+centered = false
+
+[node name="Register" type="Label" parent="HUD"]
+margin_left = 618.0
+margin_top = 303.956
+margin_right = 785.0
+margin_bottom = 404.956
+custom_fonts/font = SubResource( 4 )
+text = "COST
+"
+align = 1
+valign = 1
+
+[node name="YenMark" type="Sprite" parent="HUD/Register"]
+position = Vector2( 134.244, 47.8991 )
+texture = ExtResource( 23 )
+
+[node name="AmountPaidDisplay" type="Label" parent="HUD"]
+margin_left = 801.868
+margin_top = 610.254
+margin_right = 959.869
+margin_bottom = 691.255
+rect_scale = Vector2( 2, 2 )
+size_flags_vertical = 1
+text = "A
+"
+align = 1
+valign = 1
+
+[node name="CostDisplay" type="Label" parent="HUD"]
+visible = false
+margin_left = 1083.7
+margin_top = 624.649
+margin_right = 1241.71
+margin_bottom = 705.65
+rect_scale = Vector2( 2, 2 )
+size_flags_vertical = 1
+text = "A
+"
+align = 1
+valign = 1
+
+[node name="PreviousCostDisplay" type="Label" parent="HUD"]
+visible = false
+margin_left = 1030.94
+margin_top = 624.649
+margin_right = 1188.95
+margin_bottom = 705.65
+rect_scale = Vector2( 2, 2 )
+size_flags_vertical = 1
+text = "A
+"
+align = 1
+valign = 1
+
+[node name="TutorialCompletion" type="Label" parent="HUD"]
+visible = false
+margin_left = 1030.94
+margin_top = 624.649
+margin_right = 1188.95
+margin_bottom = 705.65
+rect_scale = Vector2( 2, 2 )
+size_flags_vertical = 1
+text = "A
+"
+align = 1
+valign = 1
+
+[node name="ScoreModeTimer" type="Label" parent="HUD"]
+visible = false
+margin_left = 592.956
+margin_top = 19.0
+margin_right = 695.956
+margin_bottom = 50.0
+rect_scale = Vector2( 2, 2 )
+size_flags_vertical = 1
+text = "Time Remaining
+"
+clip_text = true
+percent_visible = 0.461538
+max_lines_visible = 1
+
+[node name="ScoreTracker" type="Label" parent="HUD"]
+margin_left = 912.51
+margin_top = 14.478
+margin_right = 1015.51
+margin_bottom = 45.478
+rect_scale = Vector2( 2, 2 )
+size_flags_vertical = 1
+text = "Score:
+"
+
+[node name="MessageBox" type="Label" parent="HUD"]
+visible = false
+margin_left = 26.1942
+margin_top = 19.0
+margin_right = 129.194
+margin_bottom = 50.0
+rect_scale = Vector2( 2, 2 )
+size_flags_vertical = 1
+text = "You take the now cursed coin(s) back.
+"
+
+[node name="OverpaidSpeech" type="Label" parent="HUD"]
+visible = false
+margin_left = 452.36
+margin_top = 136.478
+margin_right = 629.36
+margin_bottom = 184.478
+rect_scale = Vector2( 2, 2 )
+size_flags_vertical = 1
+text = "You don't need this to pay.
+"
+autowrap = true
+
+[node name="GameFinishedInfo" type="Label" parent="HUD"]
+visible = false
+margin_left = 432.816
+margin_top = 94.5442
+margin_right = 607.816
+margin_bottom = 168.544
+rect_scale = Vector2( 2, 2 )
+size_flags_vertical = 1
+custom_colors/font_color = Color( 0, 0, 0, 1 )
+text = "Score:
+"
+
+[node name="TutorialFinishedInfo" type="Label" parent="HUD"]
+visible = false
+margin_left = 433.0
+margin_top = 95.0
+margin_right = 640.0
+margin_bottom = 169.0
+rect_scale = Vector2( 2, 2 )
+size_flags_vertical = 1
+custom_colors/font_color = Color( 0, 0, 0, 1 )
+text = "A coin fell to the floor! Try again.
+"
+
+[node name="PayButton" type="Button" parent="HUD"]
+margin_left = 1018.8
+margin_top = 621.054
+margin_right = 1159.8
+margin_bottom = 690.054
+text = "Pay (space)"
+
+[node name="UndoButton" type="Button" parent="HUD"]
+visible = false
+margin_left = 1125.82
+margin_top = 521.569
+margin_right = 1266.82
+margin_bottom = 590.569
+disabled = true
+text = "Undo (z)"
+
+[node name="ScoreModeStart" type="Button" parent="HUD"]
+visible = false
+margin_left = 542.482
+margin_top = 186.484
+margin_right = 683.482
+margin_bottom = 255.484
+text = "Restart"
+
+[node name="GameDescription" type="Sprite" parent="HUD"]
+texture = ExtResource( 24 )
+centered = false
+
+[node name="HighScores" type="Node2D" parent="HUD"]
+
+[node name="Zero" type="Sprite" parent="HUD/HighScores"]
+visible = false
+texture = ExtResource( 25 )
+centered = false
+
+[node name="Ten" type="Sprite" parent="HUD/HighScores"]
+visible = false
+texture = ExtResource( 26 )
+centered = false
+
+[node name="Twenty" type="Sprite" parent="HUD/HighScores"]
+visible = false
+texture = ExtResource( 27 )
+centered = false
+
+[node name="Thirty" type="Sprite" parent="HUD/HighScores"]
+visible = false
+texture = ExtResource( 28 )
+centered = false
+
+[node name="Fourty" type="Sprite" parent="HUD/HighScores"]
+visible = false
+texture = ExtResource( 29 )
+centered = false
+
+[node name="Fifty" type="Sprite" parent="HUD/HighScores"]
+visible = false
+texture = ExtResource( 30 )
+centered = false
+
+[node name="SoundToggle" parent="HUD" instance=ExtResource( 31 )]
+
+[node name="Lights" type="Node2D" parent="."]
+editor/display_folded = true
+
+[node name="Light" type="Sprite" parent="Lights"]
+visible = false
+texture = ExtResource( 32 )
+centered = false
+
+[node name="Light2" type="Sprite" parent="Lights"]
+visible = false
+texture = ExtResource( 33 )
+centered = false
+
+[node name="Light3" type="Sprite" parent="Lights"]
+visible = false
+texture = ExtResource( 34 )
+centered = false
+
+[node name="Light4" type="Sprite" parent="Lights"]
+visible = false
+texture = ExtResource( 35 )
+centered = false
+
+[node name="Light5" type="Sprite" parent="Lights"]
+visible = false
+texture = ExtResource( 36 )
+centered = false
+
+[node name="Light6" type="Sprite" parent="Lights"]
+visible = false
+texture = ExtResource( 37 )
+centered = false
+
+[node name="Light7" type="Sprite" parent="Lights"]
+visible = false
+texture = ExtResource( 38 )
+centered = false
+
+[node name="Light8" type="Sprite" parent="Lights"]
+visible = false
+texture = ExtResource( 39 )
+centered = false
+
+[node name="Light9" type="Sprite" parent="Lights"]
+visible = false
+texture = ExtResource( 40 )
+centered = false
+
+[node name="Light10" type="Sprite" parent="Lights"]
+visible = false
+texture = ExtResource( 41 )
+centered = false
+
+[node name="LightTimerOn" type="Timer" parent="Lights"]
+wait_time = 0.3
+one_shot = true
+
+[node name="LightTimerOff" type="Timer" parent="Lights"]
+wait_time = 0.3
+one_shot = true
+
+[node name="CoinContainers" type="Node" parent="."]
+editor/display_folded = true
+
+[node name="TraySenenContainer" type="Node" parent="CoinContainers"]
+
+[node name="ClockContainer" type="Node" parent="CoinContainers"]
+
+[node name="CursedGohyakuenContainer" type="Node" parent="CoinContainers"]
+
+[node name="GohyakuenContainer" type="Node" parent="CoinContainers"]
+
+[node name="HyakuenContainer" type="Node" parent="CoinContainers"]
+
+[node name="CursedHyakuenContainer" type="Node" parent="CoinContainers"]
+
+[node name="GojuenContainer" type="Node" parent="CoinContainers"]
+
+[node name="CursedGojuenContainer" type="Node" parent="CoinContainers"]
+
+[node name="JuenContainer" type="Node" parent="CoinContainers"]
+
+[node name="CursedJuenContainer" type="Node" parent="CoinContainers"]
+
+[node name="GoenContainer" type="Node" parent="CoinContainers"]
+
+[node name="CursedGoenContainer" type="Node" parent="CoinContainers"]
+
+[node name="IchienContainer" type="Node" parent="CoinContainers"]
+
+[node name="CursedIchienContainer" type="Node" parent="CoinContainers"]
+
+[node name="TrayGohyakuenContainer" type="Node" parent="CoinContainers"]
+
+[node name="TrayHyakuenContainer" type="Node" parent="CoinContainers"]
+
+[node name="TrayGojuenContainer" type="Node" parent="CoinContainers"]
+
+[node name="TrayJuenContainer" type="Node" parent="CoinContainers"]
+
+[node name="TrayGoenContainer" type="Node" parent="CoinContainers"]
+
+[node name="TrayIchienContainer" type="Node" parent="CoinContainers"]
+
+[node name="Sounds" type="Node" parent="."]
+editor/display_folded = true
+
+[node name="Paid" type="AudioStreamPlayer" parent="Sounds"]
+stream = ExtResource( 42 )
+
+[node name="GohyakuClicked" type="AudioStreamPlayer" parent="Sounds"]
+stream = ExtResource( 43 )
+volume_db = -20.583
+
+[node name="IchiClicked" type="AudioStreamPlayer" parent="Sounds"]
+stream = ExtResource( 44 )
+volume_db = -20.583
+
+[node name="PinPon" type="AudioStreamPlayer" parent="Sounds"]
+stream = ExtResource( 45 )
+volume_db = -20.583
+
+[node name="BuBuu" type="AudioStreamPlayer" parent="Sounds"]
+stream = ExtResource( 46 )
+volume_db = -20.583
+
+[node name="Floor" type="Area2D" parent="."]
+editor/display_folded = true
+input_pickable = false
+
+[node name="FloorCollisionShape2D" type="CollisionShape2D" parent="Floor"]
+position = Vector2( 499.152, 897.827 )
+shape = SubResource( 5 )
+
+[connection signal="input_event" from="SenStack" to="." method="_on_SenStack_input_event"]
+[connection signal="mouse_entered" from="SenStack" to="SenStack" method="_on_SenStack_mouse_entered"]
+[connection signal="mouse_exited" from="SenStack" to="SenStack" method="_on_SenStack_mouse_exited"]
+[connection signal="timeout" from="ScoreModeTimer" to="." method="_on_ScoreModeTimer_timeout"]
+[connection signal="timeout" from="TutorialMsgDelete" to="." method="_on_TutorialMsgDelete_timeout"]
+[connection signal="timeout" from="MessageDelete" to="." method="_on_MessageDelete_timeout"]
+[connection signal="pressed" from="HUD/PayButton" to="." method="_on_PayButton_pressed"]
+[connection signal="pressed" from="HUD/UndoButton" to="." method="_on_UndoButton_pressed"]
+[connection signal="pressed" from="HUD/ScoreModeStart" to="." method="_on_ScoreModeStart_pressed"]
+[connection signal="sound_off" from="HUD/SoundToggle" to="." method="_on_SoundToggle_sound_off"]
+[connection signal="sound_on" from="HUD/SoundToggle" to="." method="_on_SoundToggle_sound_on"]
+[connection signal="timeout" from="Lights/LightTimerOn" to="." method="_on_LightTimerOn_timeout"]
+[connection signal="timeout" from="Lights/LightTimerOff" to="." method="_on_LightTimerOff_timeout"]
+[connection signal="body_entered" from="Floor" to="." method="_on_Floor_body_entered"]

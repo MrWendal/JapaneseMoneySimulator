@@ -1,0 +1,27 @@
+[gd_scene load_steps=4 format=2]
+
+[ext_resource path="res://Senen.gd" type="Script" id=1]
+[ext_resource path="res://sprites/thousand yen note.png" type="Texture" id=2]
+
+[sub_resource type="RectangleShape2D" id=1]
+extents = Vector2( 2003.87, 1018.67 )
+
+[node name="TraySenen" type="RigidBody2D"]
+position = Vector2( 929.009, 131.394 )
+input_pickable = true
+collision_layer = 32
+collision_mask = 32
+gravity_scale = 4.0
+script = ExtResource( 1 )
+__meta__ = {
+"_edit_group_": true
+}
+
+[node name="SenenSprite" type="Sprite" parent="."]
+texture = ExtResource( 2 )
+
+[node name="SenenCollisionShape" type="CollisionShape2D" parent="."]
+scale = Vector2( 0.1, 0.1 )
+shape = SubResource( 1 )
+
+[connection signal="input_event" from="." to="." method="_on_TraySenen_input_event"]

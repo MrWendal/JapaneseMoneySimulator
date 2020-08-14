@@ -1,0 +1,50 @@
+[gd_scene load_steps=8 format=2]
+
+[ext_resource path="res://Area2D.gd" type="Script" id=1]
+[ext_resource path="res://sprites/mute glow.png" type="Texture" id=2]
+[ext_resource path="res://sprites/Sound.png" type="Texture" id=3]
+[ext_resource path="res://sprites/sound glow.png" type="Texture" id=4]
+[ext_resource path="res://sprites/mute.png" type="Texture" id=5]
+
+[sub_resource type="RectangleShape2D" id=1]
+extents = Vector2( 24.9689, 25.2039 )
+
+[sub_resource type="SpriteFrames" id=2]
+animations = [ {
+"frames": [ ExtResource( 2 ) ],
+"loop": true,
+"name": "MuteGlow",
+"speed": 5.0
+}, {
+"frames": [ ExtResource( 3 ) ],
+"loop": true,
+"name": "On",
+"speed": 5.0
+}, {
+"frames": [ ExtResource( 4 ) ],
+"loop": true,
+"name": "OnGlow",
+"speed": 5.0
+}, {
+"frames": [ ExtResource( 5 ) ],
+"loop": true,
+"name": "Mute",
+"speed": 5.0
+} ]
+
+[node name="SoundToggle" type="Area2D"]
+script = ExtResource( 1 )
+
+[node name="SoundToggleCollisionShape2D" type="CollisionShape2D" parent="."]
+position = Vector2( 1211.72, 110.268 )
+shape = SubResource( 1 )
+
+[node name="SoundToggleSprite" type="AnimatedSprite" parent="."]
+position = Vector2( 1211.9, 110.036 )
+scale = Vector2( 0.2, 0.2 )
+frames = SubResource( 2 )
+animation = "On"
+
+[connection signal="input_event" from="." to="." method="_on_SoundToggle_input_event"]
+[connection signal="mouse_entered" from="." to="." method="_on_SoundToggle_mouse_entered"]
+[connection signal="mouse_exited" from="." to="." method="_on_SoundToggle_mouse_exited"]
